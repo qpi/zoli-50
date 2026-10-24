@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zoli 50. szülinapi sör túra</title>
+  
+  <!-- Leaflet CSS Cloudflare CDN-ről -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+      background: #0f172a;
+    }
+
+    #header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      color: #f8fafc;
+      padding: 8px 16px;
+      text-align: center;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 1001;
+      border-bottom: 2px solid #f59e0b;
+    }
+    .header-titles h1 {
+      margin: 0;
+      font-size: 1.3rem;
+      color: #fbbf24;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .header-titles p {
+      margin: 2px 0 0;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+
+    .controls-panel {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ctrl-btn {
+      background: #334155;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 7px 12px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+    .ctrl-btn:hover { background: #475569; color: #fbbf24; }
+    .ctrl-btn.primary {
+      background: #f59e0b;
+      color: #0f172a;
+      border-color: #d97706;
+      font-weight: bold;
+    }
+    .ctrl-btn.primary:hover { background: #fbbf24; }
+
+    #map {
+      width: 100vw;
+      height: calc(100vh - 64px);
+      background: #1e293b;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Alsó Story Card / Narrátor panel */
+    #story-card {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 92%;
+      max-width: 680px;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid #334155;
+      border-left: 5px solid #f59e0b;
+      border-radius: 12px;
+      color: white;
+      padding: 14px 18px;
+      box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+    #story-card.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 25px);
+    }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stage-badge {
+      background: #d97706;
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .step-counter {
+      color: #94a3b8;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .card-content-wrap {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+    .card-img-box {
+      width: 110px;
+      height: 85px;
+      border-radius: 8px;
+      overflow: hidden;
+      flex-shrink: 0;
+      border: 1px solid #475569;
+      background: #1e293b;
+      position: relative;
+    }
+    .card-img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .logo-badge {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      background: rgba(0,0,0,0.8);
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      border: 1px solid #f59e0b;
+    }
+
+    .card-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .card-text h3 {
+      margin: 0 0 3px 0;
+      font-size: 1.15rem;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-addr {
+      font-size: 0.75rem;
+      color: #cbd5e1;
+      margin-bottom: 5px;
+    }
+    .card-desc {
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      line-height: 1.35;
+      margin: 0 0 8px 0;
+    }
+    .card-action-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #2563eb;
+      color: white;
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .card-link:hover { background: #1d4ed8; }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 4px;
+      background: #334155;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #f59e0b;
+      transition: width 0.1s linear;
+    }
+
+    .legend-box {
+      position: absolute;
+      top: 76px;
+      left: 14px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.75rem;
+      color: #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      line-height: 1.6;
+    }
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    @media (max-width: 768px) {
+      #header { flex-direction: column; height: auto; padding: 8px; gap: 6px; }
+      #map { height: calc(100vh - 100px); }
+      #story-card { bottom: 12px; width: 95%; padding: 10px; }
+      .card-img-box { width: 80px; height: 70px; }
+      .legend-box { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fejléc -->
+  <header id="header">
+    <div class="header-titles">
+      <h1>🍺 Zoli 50. szülinapi sör túra 🍻</h1>
+      <p>2026. december 11 – 14. | Budapest ➔ Brno ➔ Wrocław</p>
+    </div>
+    <div class="controls-panel">
+      <button class="ctrl-btn" id="btnPrev" title="Előző állomás">⏮ Előző</button>
+      <button class="ctrl-btn primary" id="btnPlayPause">▶ Indulás</button>
+      <button class="ctrl-btn" id="btnNext" title="Következő állomás">Következő ⏭</button>
+      <button class="ctrl-btn" id="btnSpeed">1x Sebesség</button>
+    </div>
+  </header>
+
+  <!-- Jelmagyarázat -->
+  <div class="legend-box">
+    <div><span class="legend-dot" style="background:#ef4444;"></span> Állomások / Városok</div>
+    <div><span class="legend-dot" style="background:#f59e0b;"></span> Craft sörözők</div>
+    <div><span class="legend-dot" style="background:#3b82f6;"></span> Kiemelt látnivalók</div>
+  </div>
+
+  <!-- Térkép -->
+  <div id="map"></div>
+
+  <!-- Alsó Story Card -->
+  <div id="story-card" class="hidden">
+    <div class="card-top">
+      <span class="stage-badge" id="cardStage">INDULÁS</span>
+      <span class="step-counter" id="cardCounter">1 / 18</span>
+    </div>
+    <div class="card-content-wrap">
+      <div class="card-img-box" id="cardImgWrap">
+        <img id="cardImg" src="" alt="Helyszín képe" onerror="this.src='https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=500&q=80'">
+        <div class="logo-badge" id="cardBadge">🍺</div>
+      </div>
+      <div class="card-text">
+        <h3 id="cardTitle">Indulunk!</h3>
+        <div class="card-addr" id="cardAddr">Cím</div>
+        <div class="card-desc" id="cardDesc">Leírás...</div>
+        <div class="card-action-row">
+          <a id="cardBtnLink" href="#" target="_blank" class="card-link">OnTap / Weboldal megnyitása &raquo;</a>
+          <span style="font-size: 0.72rem; color: #94a3b8;" id="timerStatus">Megálló: 10 mp</span>
+        </div>
+      </div>
+    </div>
+    <div class="progress-bar-container">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <script>
+    // 1. Térkép inicializálása
+    const map = L.map('map', {
+      center: [49.5, 17.5],
+      zoom: 7,
+      zoomControl: true
+    });
+
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri &mdash; OpenStreetMap közösség',
+      maxZoom: 19
+    }).addTo(map);
+
+    setTimeout(() => { map.invalidateSize(); }, 300);
+
+    // 2. Ikonok
+    const makeIcon = (emoji, bg) => L.divIcon({
+      html: `<div style="background:${bg}; width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:16px; border:2px solid white; box-shadow:0 3px 8px rgba(0,0,0,0.5); cursor:pointer;">${emoji}</div>`,
+      className: '',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16]
+    });
+
+    const cityIcon = makeIcon('🏁', '#ef4444');
+    const beerIcon = makeIcon('🍺', '#f59e0b');
+    const sightIcon = makeIcon('🏛️', '#3b82f6');
+    const carIcon = L.divIcon({
+      html: `<div style="background:#10b981; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; border:3px solid white; box-shadow:0 4px 10px rgba(0,0,0,0.6);">🚗</div>`,
+      className: '',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18]
+    });
+
+    // 3. Sörözők és látnivalók adatai (stabil kép URL-ekkel)
+    const stopsData = [
+      // BRNO
+      {
+        id: "axiom",
+        name: "Axiom Pub Brno",
+        addr: "Poštovská 3/38, 602 00 Brno",
+        coords: [49.1944, 16.6111],
+        url: "https://www.axiombrewery.com/taprooms/brno/",
+        img: "https://images.unsplash.com/photo-1575444758702-4a6b9222336e?auto=format&fit=crop&w=500&q=80",
+        badge: "🦅",
+        type: "beer",
+        desc: "A prostejovi Axiom Brewery hivatalos és dizájnos bárja. Mindig friss NEIPA, Sour és hordóérlelt Imperial Stout különlegességek 10+ csapon."
+      },
+      {
+        id: "maltworm",
+        name: "Malt Worm",
+        addr: "Starobrněnská 339/12, 602 00 Brno",
+        coords: [49.1925, 16.6072],
+        url: "https://maltworm.cz/en/home/",
+        // Biztosan működő pult/csap kép
+        img: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=500&q=80",
+        badge: "🐛",
+        type: "beer",
+        desc: "Hangulatos belvárosi pincebár Brno szívében, a Zelný trh mellett. 12 rotáló csap a legjobb cseh kisüzemi főzdéktől (Zichovec, Raven, Matuška)."
+      },
+      {
+        id: "spilberk",
+        name: "Špilberk vár (Hrad Špilberk)",
+        addr: "Špilberk 210/1, Brno",
+        coords: [49.1947, 16.5995],
+        url: "https://www.spilberk.cz/en/",
+        img: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=500&q=80",
+        badge: "🏰",
+        type: "sight",
+        desc: "Brno felett magasodó 13. századi erődítmény. Csodás panoráma a városra – tökéletes séta a sörözők között a morva friss levegőn."
+      },
+      {
+        id: "jbm",
+        name: "JBM Brew Lab Pub",
+        addr: "Grohova 17, 602 00 Brno",
+        coords: [49.2003, 16.5982],
+        url: "https://www.facebook.com/jbmbrewlab/",
+        img: "https://images.unsplash.com/photo-1518176258769-f227c798150e?auto=format&fit=crop&w=500&q=80",
+        badge: "🧪",
+        type: "beer",
+        desc: "Brno legendás kraft szentélye. Intim hangulat, extrém komlózású sörök, ritka külföldi vendégcsapok és igazi sörgeek közösség."
+      },
+      {
+        id: "ochutnavkova",
+        name: "Ochutnávková pivnice",
+        addr: "Lidická 1860/10, 602 00 Brno",
+        coords: [49.2017, 16.6074],
+        url: "https://ochutnavkovapivnice.cz/",
+        img: "https://images.unsplash.com/photo-1538488881522-4326c3614b4a?auto=format&fit=crop&w=500&q=80",
+        badge: "🍻",
+        type: "beer",
+        desc: "A cseh sörforradalom egyik bástyája Brnóban. Kötetlen pub hangulat, 8 folyamatosan változó csap és autentikus hideg sörkorcsolyák."
+      },
+      {
+        id: "petrov",
+        name: "Szent Péter és Pál Katedrális",
+        addr: "Petrov 9, 602 00 Brno",
+        coords: [49.1910, 16.6075],
+        url: "https://katedrala-petrov.cz/",
+        // Biztosan működő katedrális kép a Wikimedia Commons-ról
+        img: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Katedr%C3%A1la_svat%C3%BDch_Petra_a_Pavla_v_Brn%C4%9B_%28Petrov%29.jpg/640px-Katedr%C3%A1la_svat%C3%BDch_Petra_a_Pavla_v_Brn%C4%9B_%28Petrov%29.jpg",
+        badge: "⛪",
+        type: "sight",
+        desc: "A Petrov dombon álló neogótikus katedrális, Brno legfontosabb szimbóluma, amely a 10 koronás érmén is látható."
+      },
+
+      // WROCŁAW
+      {
+        id: "pinta",
+        name: "Pinta Wrocław",
+        addr: "Podwale 83, 50-414 Wrocław",
+        coords: [51.1066, 17.0435],
+        url: "https://pinta-wroclaw.ontap.pl/",
+        img: "https://images.unsplash.com/photo-1535958636474-b021ee887b13?auto=format&fit=crop&w=500&q=80",
+        badge: "👑",
+        type: "beer",
+        desc: "A lengyel kézműves sörözés alapköveként ismert Browar Pinta hivatalos sörözője. 24 csap, Atak Chmielu és prémium konyha."
+      },
+      {
+        id: "szynkarnia",
+        name: "Szynkarnia",
+        addr: "Świętego Antoniego 15, Wrocław",
+        coords: [51.1079, 17.0261],
+        url: "https://szynkarnia.ontap.pl/",
+        img: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&w=500&q=80",
+        badge: "🧀",
+        type: "beer",
+        desc: "Helyi kézműves sajtok, sonkák és kiváló lengyel craft sörök találkozása a Négy Felekezet negyedében. Gasztronómiai élmény!"
+      },
+      {
+        id: "alebrowar",
+        name: "AleBrowar Wrocław",
+        addr: "Pawła Włodkowica 27, Wrocław",
+        coords: [51.1073, 17.0252],
+        url: "https://alebrowar-wroclaw.ontap.pl/",
+        img: "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=500&q=80",
+        badge: "Hop",
+        type: "beer",
+        desc: "Pimasz stílus, modern dizájn, extrém komlózású IPÁ-k és kísérleti tételek az úttörő AleBrowar csaptelepéről."
+      },
+      {
+        id: "rynek",
+        name: "Rynek (Főtér) & Városháza",
+        addr: "Rynek, 50-101 Wrocław",
+        coords: [51.1095, 17.0315],
+        url: "https://visitwroclaw.eu/en",
+        img: "https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=500&q=80",
+        badge: "✨",
+        type: "sight",
+        desc: "Európa egyik legnagyobb és leglenyűgözőbb középkori tere színes házaival, gótikus városházájával és a híres bronz törpékkel."
+      },
+      {
+        id: "targowa",
+        name: "Targowa Craft Beer & Food",
+        addr: "Piaskowa 17, 50-359 Wrocław",
+        coords: [51.1124, 17.0401],
+        url: "https://targowa.ontap.pl/",
+        img: "https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=500&q=80",
+        badge: "🥨",
+        type: "beer",
+        desc: "A történelmi Vásárcsarnok (Hala Targowa) boltívei alatt. Hatalmas csapválaszték, mennyei csülök és autentikus sörpince hangulat."
+      },
+      {
+        id: "ostrow",
+        name: "Ostrów Tumski (Katedrális-sziget)",
+        addr: "Ostrów Tumski, Wrocław",
+        coords: [51.1146, 17.0468],
+        url: "https://visitwroclaw.eu/en",
+        img: "https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=500&q=80",
+        badge: "🌉",
+        type: "sight",
+        desc: "Wrocław legrégebbi városrésze az Odera partján. Naplementekor még ma is kézzel gyújtják meg a gázlámpákat a kövezett utcákon."
+      },
+      {
+        id: "stumostow",
+        name: "Browar Stu Mostów Pub",
+        addr: "Jana Długosza 2, Wrocław",
+        coords: [51.1441, 17.0631],
+        url: "https://100mostow.pl/en/pub/",
+        img: "https://images.unsplash.com/photo-1555658636-6e4a36218be7?auto=format&fit=crop&w=500&q=80",
+        badge: "🌉",
+        type: "beer",
+        desc: "Wrocław leghíresebb kraft főzdéjének központja. A bár közvetlenül a főzőüstökre néz. Legendás Salamander és WRCLW szériák."
+      },
+      {
+        id: "lafamiglia",
+        name: "La Famiglia Pizzeria",
+        addr: "Kolejowa 14, 53-508 Wrocław",
+        coords: [51.1009, 17.0205],
+        url: "https://la-famiglia-pizzeria.ontap.pl/",
+        img: "https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=500&q=80",
+        badge: "🍕",
+        type: "beer",
+        desc: "Autentikus nápolyi kemencés pizza és prémium kraft sörök ritka, de tökéletes fúziója az OnTap hálózatában."
+      },
+      {
+        id: "lobster",
+        name: "Lobster Concept Store",
+        addr: "Zwycięska 14cc, Wrocław",
+        coords: [51.0664, 17.0098],
+        url: "https://lobster-concept-store.ontap.pl/",
+        img: "https://images.unsplash.com/photo-1527061011665-3652c757a4d4?auto=format&fit=crop&w=500&q=80",
+        badge: "🦞",
+        type: "beer",
+        desc: "Dél-Wrocław modern koncepcióbárja és bottle shopja. Különleges tengeri fogások és válogatott lengyel ritkaságok."
+      }
+    ];
+
+    // Markerek létrehozása
+    const markersMap = {};
+    stopsData.forEach(item => {
+      const icon = item.type === 'beer' ? beerIcon : sightIcon;
+      const m = L.marker(item.coords, { icon: icon }).addTo(map);
+      m.bindPopup(`<b>${item.name}</b><br><small>${item.addr}</small><br><br><a href="${item.url}" target="_blank" style="color:#f59e0b;font-weight:bold;">Adatlap / Weboldal &raquo;</a>`);
+      m.on('click', () => {
+        showCardForItem(item, item.name);
+      });
+      markersMap[item.id] = m;
+    });
+
+    // Fő városmarkerek
+    L.marker([47.4979, 19.0402], { icon: cityIcon }).addTo(map).bindPopup("<b>Budapest</b><br>Start & Célállomás");
+    L.marker([49.1951, 16.6068], { icon: cityIcon }).addTo(map).bindPopup("<b>Brno</b><br>1. Éjszaka állomása");
+    L.marker([51.1079, 17.0385], { icon: cityIcon }).addTo(map).bindPopup("<b>Wrocław</b><br>2. & 3. Éjszaka állomása");
+
+    // 4. Koordináta-felosztás a finom autópályás mozgáshoz
+    function interpolate(p1, p2, steps) {
+      const pts = [];
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        pts.push([
+          p1[0] + (p2[0] - p1[0]) * t,
+          p1[1] + (p2[1] - p1[1]) * t
+        ]);
+      }
+      return pts;
+    }
+
+    const highwayBpToBrno = [
+      ...interpolate([47.4979, 19.0402], [47.7844, 18.0682], 4),
+      ...interpolate([47.7844, 18.0682], [47.9500, 17.6500], 3),
+      ...interpolate([47.9500, 17.6500], [48.1486, 17.1077], 3),
+      ...interpolate([48.1486, 17.1077], [48.7000, 16.9500], 3),
+      ...interpolate([48.7000, 16.9500], [49.1951, 16.6068], 4)
+    ];
+
+    const highwayBrnoToWroclaw = [
+      ...interpolate([49.1951, 16.6068], [49.4500, 17.0000], 3),
+      ...interpolate([49.4500, 17.0000], [49.5938, 17.2509], 3),
+      ...interpolate([49.5938, 17.2509], [50.0412, 16.9833], 3),
+      ...interpolate([50.0412, 16.9833], [50.4385, 16.6548], 4),
+      ...interpolate([50.4385, 16.6548], [50.8400, 16.8500], 3),
+      ...interpolate([50.8400, 16.8500], [51.1079, 17.0385], 4)
+    ];
+
+    const highwayWroclawToBp = [
+      ...interpolate([51.1079, 17.0385], [50.6700, 17.9200], 4),
+      ...interpolate([50.6700, 17.9200], [50.2649, 19.0238], 4),
+      ...interpolate([50.2649, 19.0238], [49.8209, 18.2625], 3),
+      ...interpolate([49.8209, 18.2625], [48.7500, 17.8500], 4),
+      ...interpolate([48.7500, 17.8500], [48.3100, 17.5800], 3),
+      ...interpolate([48.3100, 17.5800], [47.7844, 18.0682], 3),
+      ...interpolate([47.7844, 18.0682], [47.4979, 19.0402], 4)
+    ];
+
+    const fullTrack = [...highwayBpToBrno, ...highwayBrnoToWroclaw, ...highwayWroclawToBp];
+    L.polyline(fullTrack, {
+      color: '#6366f1',
+      weight: 3.5,
+      dashArray: '6, 8',
+      opacity: 0.7
+    }).addTo(map);
+
+    // 5. Túra lépések – "Indulunk!" és "Megérkeztünk!" címmel
+    const tourSequence = [
+      // 0. Start Budapest
+      {
+        type: 'intro',
+        stage: 'INDULÁS - BUDAPEST',
+        displayTitle: 'Indulunk!',
+        addr: 'Budapest ➔ Brno (~330 km)',
+        coords: [47.4979, 19.0402],
+        zoom: 8,
+        desc: 'Boldog 50. születésnapot Zoli! Kezdődik a 4 napos cseh-lengyel craft sör és városnéző túra. Csomagok a csomagtartóban, irány Brno!',
+        img: 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=500&q=80',
+        badge: '🚗'
+      },
+      // 1. Tranzit Brno felé
+      { type: 'transit', path: highwayBpToBrno, zoom: 8, label: 'Utazás Brnóba az M1-D2 autópályán...' },
+      
+      // 2. Brno állomások (10 mp / megálló)
+      { type: 'stop', data: stopsData[0], stage: '1. NAP - BRNO', zoom: 15 },
+      { type: 'stop', data: stopsData[1], stage: '1. NAP - BRNO', zoom: 15 },
+      { type: 'stop', data: stopsData[2], stage: '2. NAP DÉLELŐTT - BRNO', zoom: 15 },
+      { type: 'stop', data: stopsData[3], stage: '2. NAP DÉLELŐTT - BRNO', zoom: 15 },
+      { type: 'stop', data: stopsData[4], stage: '2. NAP DÉLELŐTT - BRNO', zoom: 15 },
+      { type: 'stop', data: stopsData[5], stage: '2. NAP DÉLELŐTT - BRNO', zoom: 15 },
+
+      // 3. Tranzit Wrocław felé
+      { type: 'transit', path: highwayBrnoToWroclaw, zoom: 8, label: 'Irány Lengyelország! Utazás Wrocławba (~270 km)...' },
+
+      // 4. Wrocław állomások (10 mp / megálló)
+      { type: 'stop', data: stopsData[6], stage: '2. NAP ESTE - WROCŁAW', zoom: 15 },
+      { type: 'stop', data: stopsData[7], stage: '2. NAP ESTE - WROCŁAW', zoom: 15 },
+      { type: 'stop', data: stopsData[8], stage: '2. NAP ESTE - WROCŁAW', zoom: 15 },
+      { type: 'stop', data: stopsData[9], stage: '3. NAP - WROCŁAW', zoom: 15 },
+      { type: 'stop', data: stopsData[10], stage: '3. NAP - WROCŁAW', zoom: 15 },
+      { type: 'stop', data: stopsData[11], stage: '3. NAP - WROCŁAW', zoom: 15 },
+      { type: 'stop', data: stopsData[12], stage: '3. NAP - WROCŁAW', zoom: 14 },
+      { type: 'stop', data: stopsData[13], stage: '3. NAP - WROCŁAW', zoom: 14 },
+      { type: 'stop', data: stopsData[14], stage: '3. NAP - WROCŁAW', zoom: 14 },
+
+      // 5. Tranzit Vissza Budapestre
+      { type: 'transit', path: highwayWroclawToBp, zoom: 7, label: '4. Nap: Hazautazás Budapestre (~590 km)...' },
+
+      // 6. Finálé Budapest
+      {
+        type: 'finish',
+        stage: 'HAZAÉRKEZÉS - BUDAPEST',
+        displayTitle: 'Megérkeztünk!',
+        addr: 'Budapest, Érkezés',
+        coords: [47.4979, 19.0402],
+        zoom: 10,
+        desc: 'Sikeresen teljesítve a 4 napos cseh-lengyel sör és gasztro kaland! Isten éltessen még egyszer 50. szülinapodon, Zoli!',
+        img: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=500&q=80',
+        badge: '🎂'
+      }
+    ];
+
+    // 6. Animációs vezérlés és állapotok
+    let currentStepIdx = 0;
+    let isPlaying = false;
+    let speedFactor = 1;
+    let baseStopDuration = 10000; // 10 másodperc
+    let transitStepDuration = 600;
+
+    const carMarker = L.marker([47.4979, 19.0402], { icon: carIcon }).addTo(map);
+
+    let progressTimer = null;
+    let stepTimeout = null;
+
+    const storyCard = document.getElementById('story-card');
+    const cardStage = document.getElementById('cardStage');
+    const cardCounter = document.getElementById('cardCounter');
+    const cardTitle = document.getElementById('cardTitle');
+    const cardAddr = document.getElementById('cardAddr');
+    const cardDesc = document.getElementById('cardDesc');
+    const cardImg = document.getElementById('cardImg');
+    const cardBadge = document.getElementById('cardBadge');
+    const cardBtnLink = document.getElementById('cardBtnLink');
+    const progressBar = document.getElementById('progressBar');
+    const timerStatus = document.getElementById('timerStatus');
+
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnSpeed = document.getElementById('btnSpeed');
+
+    // Kártya megjelenítő függvény határozott névkezeléssel
+    function showCardForItem(item, titleOverride, stageText = 'KÉZMŰVES SÖRÖZŐ') {
+      cardStage.innerText = stageText;
+      // Biztosan nem lesz undefined:
+      cardTitle.innerText = titleOverride || item.displayTitle || item.name || 'Állomás';
+      cardAddr.innerText = item.addr || '';
+      cardDesc.innerText = item.desc || '';
+      cardImg.src = item.img || 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?auto=format&fit=crop&w=500&q=80';
+      cardBadge.innerText = item.badge || '🍺';
+      
+      if (item.url) {
+        cardBtnLink.style.display = 'inline-flex';
+        cardBtnLink.href = item.url;
+      } else {
+        cardBtnLink.style.display = 'none';
+      }
+      storyCard.classList.remove('hidden');
+    }
+
+    function clearTimers() {
+      if (progressTimer) clearInterval(progressTimer);
+      if (stepTimeout) clearTimeout(stepTimeout);
+      progressBar.style.width = '0%';
+    }
+
+    function runStep(idx) {
+      if (idx < 0 || idx >= tourSequence.length) return;
+      currentStepIdx = idx;
+      clearTimers();
+
+      const step = tourSequence[idx];
+      cardCounter.innerText = `${idx + 1} / ${tourSequence.length}`;
+
+      if (step.type === 'transit') {
+        storyCard.classList.remove('hidden');
+        cardStage.innerText = 'AUTÓÚT';
+        cardTitle.innerText = '🚗 ' + step.label;
+        cardAddr.innerText = 'Autópálya szakasz';
+        cardDesc.innerText = 'Folyamatos utazás a következő városba, a csempék finoman követik az autót...';
+        cardImg.src = 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?auto=format&fit=crop&w=500&q=80';
+        cardBadge.innerText = '🛣️';
+        cardBtnLink.style.display = 'none';
+        timerStatus.innerText = 'Utazás folyamatban...';
+
+        map.setView(step.path[0], step.zoom, { animate: true, duration: 1 });
+
+        let pIdx = 0;
+        const moveInterval = setInterval(() => {
+          if (!isPlaying) {
+            clearInterval(moveInterval);
+            return;
+          }
+          pIdx++;
+          if (pIdx >= step.path.length) {
+            clearInterval(moveInterval);
+            if (isPlaying) runStep(idx + 1);
+            return;
+          }
+          const pt = step.path[pIdx];
+          carMarker.setLatLng(pt);
+          map.panTo(pt, { animate: true, duration: (transitStepDuration / speedFactor) / 1000 });
+        }, transitStepDuration / speedFactor);
+
+      } else {
+        // Megállók: intro, stop, finish
+        const data = step.data || step;
+        const customTitle = step.displayTitle || data.name;
+        showCardForItem(data, customTitle, step.stage || 'ÁLLOMÁS');
+
+        carMarker.setLatLng(data.coords);
+        map.flyTo(data.coords, step.zoom || 15, { animate: true, duration: 1.2 });
+
+        if (data.id && markersMap[data.id]) {
+          markersMap[data.id].openPopup();
+        }
+
+        const duration = baseStopDuration / speedFactor;
+        timerStatus.innerText = `Megálló: ${Math.round(duration / 1000)} mp`;
+
+        const startTime = Date.now();
+        progressTimer = setInterval(() => {
+          if (!isPlaying) return;
+          const elapsed = Date.now() - startTime;
+          const percent = Math.min(100, (elapsed / duration) * 100);
+          progressBar.style.width = percent + '%';
+          if (percent >= 100) {
+            clearInterval(progressTimer);
+          }
+        }, 80);
+
+        if (isPlaying) {
+          stepTimeout = setTimeout(() => {
+            if (idx + 1 < tourSequence.length) {
+              runStep(idx + 1);
+            } else {
+              // Túra vége -> felkészülés az Újraindításra
+              isPlaying = false;
+              btnPlayPause.innerText = '🔄 Újraindítás';
+              btnPlayPause.classList.add('primary');
+            }
+          }, duration);
+        }
+      }
+    }
+
+    // Lejátszás / Szünet / Újraindítás gomb kezelése
+    btnPlayPause.addEventListener('click', () => {
+      // Ha a legvégén vagyunk, és az Újraindításra kattint
+      if (currentStepIdx >= tourSequence.length - 1 && !isPlaying) {
+        currentStepIdx = 0; // Vissza az elejére
+        isPlaying = true;
+        btnPlayPause.innerText = '⏸ Szünet';
+        btnPlayPause.classList.remove('primary');
+        runStep(0);
+        return;
+      }
+
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        btnPlayPause.innerText = '⏸ Szünet';
+        btnPlayPause.classList.remove('primary');
+        runStep(currentStepIdx);
+      } else {
+        btnPlayPause.innerText = '▶ Folytatás';
+        btnPlayPause.classList.add('primary');
+        clearTimers();
+      }
+    });
+
+    btnNext.addEventListener('click', () => {
+      if (currentStepIdx + 1 < tourSequence.length) {
+        runStep(currentStepIdx + 1);
+      }
+    });
+
+    btnPrev.addEventListener('click', () => {
+      if (currentStepIdx - 1 >= 0) {
+        runStep(currentStepIdx - 1);
+      }
+    });
+
+    btnSpeed.addEventListener('click', () => {
+      if (speedFactor === 1) {
+        speedFactor = 2;
+        btnSpeed.innerText = '2x Sebesség';
+      } else {
+        speedFactor = 1;
+        btnSpeed.innerText = '1x Sebesség';
+      }
+      if (isPlaying) {
+        runStep(currentStepIdx);
+      }
+    });
+
+    // Kezdőállapot betöltése
+    runStep(0);
+    isPlaying = false;
+    btnPlayPause.innerText = '▶ Indulás';
+    btnPlayPause.classList.add('primary');
+  </script>
+</body>
+</html>
